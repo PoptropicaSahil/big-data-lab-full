@@ -88,3 +88,148 @@ df_credit = df_credit.withColumn("age_group", when(col("age") < 30, "young")
 df_credit.show()
 
 # ML flow
+
+
+!pip install mlflow --quiet
+!pip install pyngrok --quiet
+
+!mlflow
+
+import mlflow
+import mlflow.sklearn
+
+mlflow.set_experiment('CreditRiskModel')
+
+import pandas as pd
+import numpy as np
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, fbeta_score
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import ElasticNet
+import mlflow
+import mlflow.sklearn
+import sys
+import os
+
+def eval_metrics(actual, pred):
+  acc=accuracy_score(actual, pred)
+  conf=confusion_matrix(actual, pred)
+  betaf=fbeta_score(actual, pred)
+  return acc, conf, betaf
+
+##Converting spark dataframe df_credit to pandas dataframe
+df_credit = df_credit.toPandas()
+df_credit.drop('_c0', axis=1)
+
+df_credit=df_credit.drop('_c0', axis=1)
+
+def one_hot_encoder(df, nan_as_category = False):
+    original_columns = list(df.columns)
+    categorical_columns = [col for col in df.columns if df[col].dtype == 'object']
+    df = pd.get_dummies(df, columns= categorical_columns, dummy_na= nan_as_category, drop_first=True)
+    new_columns = [c for c in df.columns if c not in original_columns]
+    return df, new_columns
+
+df_credit.head()
+
+#Purpose to Dummies Variable
+df_credit = df_credit.merge(pd.get_dummies(df_credit.purpose, drop_first=True, prefix='purpose'), left_index=True, right_index=True)
+#Sex feature in dummies
+df_credit = df_credit.merge(pd.get_dummies(df_credit.sex, drop_first=True, prefix='sex'), left_index=True, right_index=True)
+# Housing get dummies
+df_credit = df_credit.merge(pd.get_dummies(df_credit.housing, drop_first=True, prefix='housing'), left_index=True, right_index=True)
+# Housing get Saving Accounts
+df_credit = df_credit.merge(pd.get_dummies(df_credit["savings_account"], drop_first=True, prefix='savings'), left_index=True, right_index=True)
+# # Housing get Risk
+# df_credit = df_credit.merge(pd.get_dummies(df_credit.risk, prefix='risk'), left_index=True, right_index=True)
+# Housing get Checking Account
+df_credit = df_credit.merge(pd.get_dummies(df_credit["checking_account"], drop_first=True, prefix='check'), left_index=True, right_index=True)
+# Housing get Age categorical
+df_credit = df_credit.merge(pd.get_dummies(df_credit["age_group"], drop_first=True, prefix='age_cat'), left_index=True, right_index=True)
+
+df_credit = df_credit.merge(pd.get_dummies(df_credit["credit_amount_range"], drop_first=True, prefix='cred_amt'), left_index=True, right_index=True)
+
+df_credit
+
+#Excluding the missing columns
+del df_credit["savings_account"]
+del df_credit["checking_account"]
+del df_credit["purpose"]
+del df_credit["sex"]
+del df_credit["housing"]
+del df_credit["age_group"]
+
+del df_credit['credit_amount_range']
+
+df_credit
+
+
+
+df_credit['risk'].replace({'bad':1, 'good':0}, inplace=True)
+
+df_credit
+
+X=df_credit.drop('risk', axis=1)
+y=df_credit['risk']
+
+# Import necessary libraries
+import mlflow
+import mlflow.sklearn
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score
+
+
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Define a list of models to train
+models = [
+    ("RandomForest", RandomForestClassifier()),
+    ("LogisticRegression",  LogisticRegression(solver='lbfgs', max_iter=1000)),
+    ("GradientBoosting", GradientBoostingClassifier()),
+    ("SVM", SVC(kernel='linear')),
+    ("DecisionTree", DecisionTreeClassifier()),
+    ("LDA", LinearDiscriminantAnalysis()),
+    ("XGB", XGBClassifier())
+    # Add more models here as needed
+]
+
+# Iterate over models
+for model_name, model in models:
+    with mlflow.start_run(run_name=model_name):  # Start MLflow run
+        # Train the model
+        model.fit(X_train, y_train)
+
+        # Make predictions
+        y_pred = model.predict(X_test)
+
+        # Calculate accuracy
+        accuracy = accuracy_score(y_test, y_pred)
+
+        # Log model parameters and metrics to MLflow
+        mlflow.log_param("model", model_name)
+        mlflow.log_metric("accuracy", accuracy)
+
+        # Save the model in MLflow
+        mlflow.sklearn.log_model(model, model_name)
+
+# End MLflow run
+mlflow.end_run()
+
+from  pyngrok import ngrok
+
+ngrok.kill()
+
+NGROK_AUTH_TOKEN="2gAq5QQAevQ37OCEKWcsoglpPwF_4MJv4m6MA9Y1roeL5hkUY"
+ngrok.set_auth_token(NGROK_AUTH_TOKEN)
+
+ngrok_tunnel=ngrok.connect(addr="5000", proto="http", bind_tls=True)
+print("MLflow Tracking UI:", ngrok_tunnel.public_url)
+
+!mlflow ui
