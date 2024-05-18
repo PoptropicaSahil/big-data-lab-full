@@ -27,21 +27,30 @@ The three containers and their respective ports are given at:
 # ✨Task-wise pointers✨
 
 ## ✨Data (pre)processing pipeline implemented via Apache Spark✨
+- The Preprocessing code has been implemented in Pyspark. All code can be found in the `/app/utils/` directory. The `TrainingUtils` class contains all methods for processing such as imputing missing values, renaming columns as necessary etc.
+
+## Github Repo
+- The project was contributed by 3 authors. All of us had multiple commits, pushes, and a pull request. 
+- We created new branches and merged them into the main branch whenever considerable changes were made or bugs were fixed
+- Release notes of **Version 1 of the app** and the corresponding **.whl** file are also available
+<img src="readme_images/git_pr.png" width="1000"/>
 
 
 
-### 🔧Adding Gauges🔧
-- All the required gauges and counters are added to the `main.py` file with corresponding logic
+## MlFlow
+- We utilsed MLFlow in two stages: (a) to get the best performing model, and (b) to search for the best hyperparameters 
+
+<img src="readme_images/mlflow.png" width="500"/>
+
+
 
 ### 📱Testing via other devices📱
-- Opened the command prompt from Windows and ran `ipconfig`. Under the Wireless LAN adapter Wi-Fi, I got my IPv4 Address as `192.168.10.105`
-- From another device connected to the same network, I typed the url : `http://192.168.10.105:8000.`
+- Opened the command prompt from Windows and ran `ipconfig`. Under the Wireless LAN adapter Wi-Fi, I got my IPv4 Address as `192.168.0.3`
+- From another device connected to the same network, I typed the url : `http://192.168.0.3:8000.`
 - Could acccess and test my API with this endpoint
-<img src="readme_images/from-phone.jpg" width="500"/>
+<img src="readme_images/phone.png" width="500"/>
 
 
-
-## ✨TASK 2✨
 
 ### ⚓Setting up Docker⚓
 - Wrote the DockerFile, docker-compose file, other yml files properly and setup the containers using
@@ -62,24 +71,17 @@ $ docker compose # for subsequent runs, building is not necessary so this works 
 # 📸Snapshots📸
 
 ## ⏩FastAPI⏩
-<img src="readme_images/fastapi-1.png" width="1000"/>
-<img src="readme_images/fastapi-2.png" width="1000"/>
+
+<img src="readme_images/fastapi.png" width="1000"/>
 
 
 ## 🐎Prometheus🐎
 > Note: These are the custom metrics and gauges
 
-<img src="readme_images/prom-1.png" width="1000"/>
-<img src="readme_images/prom-2.png" width="1000"/>
-<img src="readme_images/prom-3.png" width="1000"/>
+<img src="readme_images/prom.png" width="1000"/>
 
 ## 🌞Grafana🌞
-<img src="readme_images/graf-1.png" width="1000"/>
-<img src="readme_images/graf-2.png" width="1000"/>
-
-
-**Default Dashboard**
-<img src="readme_images/graf-3.png" width="1000"/>
+<img src="readme_images/graf.png" width="1000"/>
 
 
 
