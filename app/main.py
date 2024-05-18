@@ -10,7 +10,11 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.logging_config import script_run_logger
+from utils.mrit_functions import process_credit_data
 
+from utils.inference import Infer_Credit
+
+inferer = Infer_Credit()
 app = FastAPI()
 
 # Enable CORS
@@ -45,14 +49,14 @@ Instrumentator().instrument(app).expose(app)
 @app.get("/")
 def home():
     script_run_logger.info("started app and ran main page msg")
-    return "Hii Welcome to the final Project by Team Story 📖📖"
+    return "Hii Welcome to the final Project by Team Story 📖📖📖"
 
 
 def load_model():
     global model
     try:
-        model = pickle.load(open("model.pkl", "rb"))
-        return {"message": "Model loaded successfully"}
+        model = pickle.load(open("utils/random_forest.pkl", "rb"))
+        return {"message": "Best model loaded successfully"}
     except ValueError:
         return {
             "error": "Model could not be loaded, check if you are running the code from the XYZ directory"
@@ -61,13 +65,14 @@ def load_model():
 
 def format_data(file: UploadFile):
     data = pd.read_csv(file.file, index_col=0)  # type: ignore
-    data = data.drop(["risk"], axis=1)
 
-    cleaned_data = mrit_function(data)
+    cleaned_data = process_credit_data(data)
     ### WILL HAVE MANY MORE CHANGES LIKE
     # PREPROCESSING, NOT DROPPING TARGET COL, CHECK INDEX COL ETC
 
-    return data
+    return cleaned_data
+
+    # return data
 
 
 def predict_risk(model, data):
@@ -94,14 +99,18 @@ async def monitor_requests(request: Request, call_next):
 async def predict(file: UploadFile = File(...)):
     start_time = time.time()
     load_model()
-    data = format_data(file)
+    # data = format_data(file)
 
     script_run_logger.info("loaded model and formatted data")
-    script_run_logger.info(f"model type is {type(model)} and data type is {type(data)}")
-    script_run_logger.info(f"data is {data}")
+    script_run_logger.info(f"model type is {type(model)}")
+    # script_run_logger.info(f"data type is {type(data)}")
+    # script_run_logger.info(f"data is {data}")
 
     if model is not None:
-        risks = predict_risk(model, data)
+        risks = inferer.make_inferences(input_file = file)
+        print(f'predictions are {risks}')
+
+        # risks = predict_risk(model, data)
         risks_list = risks.tolist()
         api_runtime = time.time() - start_time
         api_runtime_gauge.set(api_runtime)
