@@ -23,6 +23,32 @@ class TrainingUtils:
         """Load the training file from the path"""
         return spark.read.csv(file_path, header=True, inferSchema=True)
 
+    def data_val_checks(self, df):
+        """Check if all columns are present in the data. The flag takes value 1 
+        if there is any missing column or a CRITICAL column has missing values""" 
+        data_validation_check_flag = 0
+
+        # Check for presence of columns
+        cols_in_df = df.columns
+        expected_cols = ['_c0', 'Age', 'Sex', 'Job', 'Housing', 'Saving accounts',
+                         'Checking account', 'Credit amount', 'Duration', 'Purpose']
+
+        if set(cols_in_df) != set(expected_cols):
+            data_validation_check_flag = 1
+
+        # TODO:
+        # Add checks if any column except the  'Saving accounts', 'Checking account' have any empty values
+        # The has_missing_values column will be True if any of the selected columns
+        # expected_filled_cols = ['Age', 'Sex', 'Job', 'Housing', 'Credit amount', 'Duration', 'Purpose']
+        # missing_conditions = [col(c).isNull() for c in expected_filled_cols]
+        # has_missing_values = any(missing_conditions) # not working
+
+        # if has_missing_values == True:
+        #     data_validation_check_flag = 1
+
+
+        return data_validation_check_flag
+    
     def rename_columns(self, df):
         """Rename columns to lowercase for convinience"""
         return df.select([col(c).alias(c.lower()) for c in df.columns])
@@ -154,3 +180,5 @@ class TrainingUtils:
 
         df = pd.concat([data_hot_encoded, data_other_cols], axis=1)
         return df
+
+
