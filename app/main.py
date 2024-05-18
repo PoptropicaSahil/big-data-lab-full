@@ -75,7 +75,6 @@ async def monitor_requests(request: Request, call_next):
 async def predict(file: UploadFile = File(...)):
     start_time = time.time()
     load_model()
-    # data = format_data(file)
 
     script_run_logger.info("loaded model and formatted data")
     script_run_logger.info(f"model type is {type(model)}")

@@ -19,15 +19,31 @@ class Infer_Credit:
 
         spark = self.trainer.create_spark_session("CreditDataProcessing")
 
-        # Read the data by storing in a temporary file
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
-            # Write the contents of the File object to the temporary file
-            temp.write(input_file.file.read())
-            temp.flush()
-            temp_path = temp.name
+        
+        ### Boundary Check for reading the file
+        try:
+            # Read the data by storing in a temporary file
+            with tempfile.NamedTemporaryFile(delete=False) as temp:
+                # Write the contents of the File object to the temporary file
+                temp.write(input_file.file.read())
+                temp.flush()
+                temp_path = temp.name
 
-        # Read the temporary file using Spark
-        df_credit = spark.read.csv(temp_path, header=True, inferSchema=True)
+            # Read the temporary file using Spark
+            df_credit = spark.read.csv(temp_path, header=True, inferSchema=True)
+        except Exception as e:
+            print(f'ERROR READING FILE. EXCEPTION IS {e}')
+
+        
+        data_validation_check_flag = self.trainer.data_val_checks(df_credit)
+
+        if data_validation_check_flag == 0:
+            print('DATA VALIDATION SUCCESSFUL')
+        else:
+            raise Exception('''ENTERED DATTA IS NOT IN EXPECTED FORMAT. PLEASE CHECK SAMPLE INFERENCE FILE FOR REFERENCE
+                            All given columns should be present and the columns except Saving accounts and Checking account
+                            should not have any missing values''')
+
         df_credit = self.trainer.rename_columns(df_credit)
         df_credit = self.trainer.rename_specific_columns(df_credit)
 
