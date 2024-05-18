@@ -1,31 +1,14 @@
-import pandas as pd
+import os
 
-# Load the librarys
-# Load the libraries
-from pyspark.sql import SparkSession
-
-# Load the librarys
-# Load the libraries
 import joblib
+import pandas as pd
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, count, when
 from sklearn.metrics import accuracy_score, confusion_matrix, fbeta_score
 from sklearn.preprocessing import OneHotEncoder
 
-import os
 # Get the current working directory
 cwd = os.getcwd()
-# Load the librarys
-
-
-# from sklearn.datasets import load_iris
-# from sklearn.linear_model import LogisticRegression
-# from sklearn.svm import SVC
-# from sklearn.tree import DecisionTreeClassifier
-# from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-# from xgboost import XGBClassifier
-
-import tempfile
-from io import StringIO
 
 
 class TrainingUtils:
@@ -33,51 +16,26 @@ class TrainingUtils:
         pass
 
     def create_spark_session(self, app_name):
+        """Create spark Session"""
         return SparkSession.builder.appName(app_name).getOrCreate()  # type: ignore
 
     def load_dataset(self, spark, file_path):
-        # df = pd.read_csv(file_path, index_col=0)
-        # df_spark = spark.createDataFrame(df)
-        # return df_spark
-
-        # with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        #     temp_file.write(file_path.file.read())
-        #     file_path = temp_file.name
-
-        #     return spark.read.csv(file_path, header=True, inferSchema=True)
-        # file_stream = io.BytesIO(file_path.file.read())
-
-        # return spark.read.csv(
-        #     StringIO(str(file_path.file.read())),
-        #     header=True,
-        #     inferSchema=True,
-        # )
-
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
-            # Write the contents of the File object to the temporary file
-            temp.write(file_path.file.read())
-            temp.flush()
-            temp_path = temp.name
-
-        # Read the temporary file using Spark
-        df = spark.read.csv(temp_path, header=True, inferSchema=True)
-
-        # Delete the temporary file
-        temp.close()
-        os.unlink(temp_path)
-
-        return df
+        """Load the training file from the path"""
+        return spark.read.csv(file_path, header=True, inferSchema=True)
 
     def rename_columns(self, df):
+        """Rename columns to lowercase for convinience"""
         return df.select([col(c).alias(c.lower()) for c in df.columns])
 
     def rename_specific_columns(self, df):
+        """Rename specific columns with spaces in their names"""
         df = df.withColumnRenamed("saving accounts", "savings_account")
         df = df.withColumnRenamed("checking account", "checking_account")
         df = df.withColumnRenamed("credit amount", "credit_amount")
         return df
 
     def get_most_frequent_category(self, df, column_name):
+        """Get most frequent category in the column - useful while missing value imputing"""
         return (
             df.select(column_name)
             .groupBy(column_name)
@@ -87,6 +45,7 @@ class TrainingUtils:
         )
 
     def fill_missing_values(self, df, column_name, most_frequent_value):
+        """Fill missing values with most frequent values"""
         return df.withColumn(
             column_name,
             when(col(column_name) == "NA", most_frequent_value).otherwise(
@@ -95,6 +54,7 @@ class TrainingUtils:
         )
 
     def create_new_features(self, df):
+        """Bin few columns to managable values"""
         df = df.withColumn(
             "credit_amount_range",
             when(col("credit_amount") < 5000, "low")
@@ -110,88 +70,87 @@ class TrainingUtils:
         return df
 
     def eval_metrics(self, actual, pred):
+        """Generate predictions"""
         acc = accuracy_score(actual, pred)
         conf = confusion_matrix(actual, pred)
         betaf = fbeta_score(actual, pred, beta=1.0)  # Specify beta value
         return acc, conf, betaf
 
-
     def preprocess_data_training(self, df):
+        """Preprocessing training data"""
         df = df.toPandas()
 
+        # This column comes up wierdly when the File is loaded using spark
         try:
-            df = df.drop('_c0', axis=1)
+            df = df.drop("_c0", axis=1)
         except KeyError:
             pass
 
         # Define the columns to be one-hot encoded
-        columns_to_encode = ['purpose', 'sex', 'housing', 'savings_account', 'checking_account', 'age_group','credit_amount_range']
+        columns_to_encode = [
+            "purpose",
+            "sex",
+            "housing",
+            "savings_account",
+            "checking_account",
+            "age_group",
+            "credit_amount_range",
+        ]
 
+        ohe = OneHotEncoder(drop="first", sparse=False)
 
-        ohe = OneHotEncoder(drop='first', sparse=False)
-
-        #One-hot-encode the categorical columns.
-        #Unfortunately outputs an array instead of dataframe.
+        # One-hot-encode the categorical columns.
+        # Unfortunately outputs an array instead of dataframe.
         array_hot_encoded = ohe.fit_transform(df[columns_to_encode])
-        #Convert it to df
+        # Convert it to df
         data_hot_encoded = pd.DataFrame(array_hot_encoded, index=df.index)
-        #Extract only the columns that didnt need to be encoded
+        # Extract only the columns that didnt need to be encoded
         data_other_cols = df.drop(columns=columns_to_encode)
 
-        #Concatenate the two dataframes :
+        # Concatenate the two dataframes :
         df = pd.concat([data_hot_encoded, data_other_cols], axis=1)
 
+        # Save the OHE
         joblib.dump(ohe, "ohe.joblib")
 
         # # Apply one-hot encoding
         # df = one_hot_encode_columns(df, categorical_columns)
 
         # Encode the target variable
-        df['risk'].replace({'bad': 1, 'good': 0}, inplace=True)
-        
+        df["risk"].replace({"bad": 1, "good": 0}, inplace=True)
+
         return df
 
     def preprocess_data_inference(self, df):
+        """Preprocessing inference data - quite similar to training
+        but with modifications such as
+        using the trained One-hot encoder,
+        filling missing values with the most frequent category as obtained from training file"""
         df = df.toPandas()
-        # df = df.drop('_c0', axis=1)
 
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.max_rows', None)  
-
-        # print(df.head())
-        # print(df.tail())
-
-        # print(f"df in step will be {df} cols are {df.columns}, shape = {df.shape}")
+        # Similar as the training file inference
         try:
-            df = df.drop('_c0', axis=1)
+            df = df.drop("_c0", axis=1)
         except KeyError:
             pass
 
         # Define the columns to be one-hot encoded
-        columns_to_encode = ['purpose', 'sex', 'housing', 'savings_account', 'checking_account', 'age_group','credit_amount_range']
-
-        # ohe=joblib.load('ohe.joblib')
+        columns_to_encode = [
+            "purpose",
+            "sex",
+            "housing",
+            "savings_account",
+            "checking_account",
+            "age_group",
+            "credit_amount_range",
+        ]
 
         # Load the joblib file using the full path
-        ohe = joblib.load(os.path.join(cwd, 'utils/ohe.joblib'))
+        ohe = joblib.load(os.path.join(cwd, "utils/ohe.joblib"))
 
-
-
-        #One-hot-encode the categorical columns.
-        #Unfortunately outputs an array instead of dataframe.
         array_hot_encoded = ohe.transform(df[columns_to_encode])
-        #Convert it to df
         data_hot_encoded = pd.DataFrame(array_hot_encoded, index=df.index)
-        #Extract only the columns that didnt need to be encoded
         data_other_cols = df.drop(columns=columns_to_encode)
 
-        #Concatenate the two dataframes :
         df = pd.concat([data_hot_encoded, data_other_cols], axis=1)
-        # print(df.shape)
-
-        # Encode the target variable
-        #df['risk'].replace({'bad': 1, 'good': 0}, inplace=True)
-
         return df
-
-        

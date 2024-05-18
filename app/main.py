@@ -2,17 +2,13 @@ import pickle
 import socket
 import time
 
-import pandas as pd
 from fastapi import FastAPI, File, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Gauge, generate_latest, start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
-
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils.logging_config import script_run_logger
-from utils.mrit_functions import process_credit_data
-
 from utils.inference import Infer_Credit
+
+from utils.logging_config import script_run_logger
 
 inferer = Infer_Credit()
 app = FastAPI()
@@ -25,7 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Load the model, initialise to None
 model = None
@@ -63,25 +58,6 @@ def load_model():
         }
 
 
-def format_data(file: UploadFile):
-    data = pd.read_csv(file.file, index_col=0)  # type: ignore
-
-    cleaned_data = process_credit_data(data)
-    ### WILL HAVE MANY MORE CHANGES LIKE
-    # PREPROCESSING, NOT DROPPING TARGET COL, CHECK INDEX COL ETC
-
-    return cleaned_data
-
-    # return data
-
-
-def predict_risk(model, data):
-    predictions = model.predict(data)  # type: ignore
-    script_run_logger.info(f"predictions are {predictions}")
-
-    return predictions
-
-
 # Middleware to track request counts and runtime
 # This http endpoint is required by Prometheus to scrape metrics
 @app.middleware("http")
@@ -103,14 +79,10 @@ async def predict(file: UploadFile = File(...)):
 
     script_run_logger.info("loaded model and formatted data")
     script_run_logger.info(f"model type is {type(model)}")
-    # script_run_logger.info(f"data type is {type(data)}")
-    # script_run_logger.info(f"data is {data}")
 
     if model is not None:
-        risks = inferer.make_inferences(input_file = file)
-        print(f'predictions are {risks}')
-
-        # risks = predict_risk(model, data)
+        risks = inferer.make_inferences(input_file=file)
+        print(f"predictions are {risks}")
         risks_list = risks.tolist()
         api_runtime = time.time() - start_time
         api_runtime_gauge.set(api_runtime)
