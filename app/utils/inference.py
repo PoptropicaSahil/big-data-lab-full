@@ -4,6 +4,9 @@ import joblib
 from .training_utils import TrainingUtils
 
 from fastapi import File
+import os
+cwd = os.getcwd()
+
 
 class Infer_Credit:
 
@@ -15,7 +18,7 @@ class Infer_Credit:
         spark = self.trainer.create_spark_session("CreditDataProcessing")
         df_credit = self.trainer.load_dataset(spark, input_file) # read the input file
         
-        print(f'read the input file nicely, it is {df_credit}')
+        # print(f'read the input file nicely, it is {df_credit}')
 
 
         df_credit = self.trainer.rename_columns(df_credit)
@@ -25,12 +28,12 @@ class Infer_Credit:
         #     df_credit, "checking_account"
         # )
 
-        print(f'before fill missing is {df_credit}')
+        # print(f'before fill missing is {df_credit}')
 
         df_credit = self.trainer.fill_missing_values(df_credit, "savings_account", "little")
         df_credit = self.trainer.fill_missing_values(df_credit, "checking_account", "moderate")
         
-        print(f'after fill missing is {df_credit}')
+        # print(f'after fill missing is {df_credit}')
 
         df_credit = self.trainer.create_new_features(df_credit)
 
@@ -47,8 +50,8 @@ class Infer_Credit:
         df.columns = df.columns.astype(str)
 
         # Use the loaded model to make predictions
-        loaded_model = joblib.load("random_forest.pkl")
-
+        # loaded_model = joblib.load("random_forest.pkl")
+        loaded_model = joblib.load(os.path.join(cwd, "utils/random_forest.pkl"))
 
         result = loaded_model.predict(df)
 

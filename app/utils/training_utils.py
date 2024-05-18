@@ -47,11 +47,26 @@ class TrainingUtils:
         #     return spark.read.csv(file_path, header=True, inferSchema=True)
         # file_stream = io.BytesIO(file_path.file.read())
 
-        return spark.read.csv(
-            StringIO(str(file_path.file.read(), "utf-16")),
-            header=True,
-            inferSchema=True,
-        )
+        # return spark.read.csv(
+        #     StringIO(str(file_path.file.read())),
+        #     header=True,
+        #     inferSchema=True,
+        # )
+
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            # Write the contents of the File object to the temporary file
+            temp.write(file_path.file.read())
+            temp.flush()
+            temp_path = temp.name
+
+        # Read the temporary file using Spark
+        df = spark.read.csv(temp_path, header=True, inferSchema=True)
+
+        # Delete the temporary file
+        temp.close()
+        os.unlink(temp_path)
+
+        return df
 
     def rename_columns(self, df):
         return df.select([col(c).alias(c.lower()) for c in df.columns])
@@ -143,10 +158,10 @@ class TrainingUtils:
         pd.set_option('display.max_columns', None)
         pd.set_option('display.max_rows', None)  
 
-        print(df.head())
-        print(df.tail())
+        # print(df.head())
+        # print(df.tail())
 
-        print(f"df in step will be {df} cols are {df.columns}, shape = {df.shape}")
+        # print(f"df in step will be {df} cols are {df.columns}, shape = {df.shape}")
         try:
             df = df.drop('_c0', axis=1)
         except KeyError:
@@ -172,7 +187,7 @@ class TrainingUtils:
 
         #Concatenate the two dataframes :
         df = pd.concat([data_hot_encoded, data_other_cols], axis=1)
-        print(df.shape)
+        # print(df.shape)
 
         # Encode the target variable
         #df['risk'].replace({'bad': 1, 'good': 0}, inplace=True)

@@ -53,7 +53,7 @@ services:
   #     example-network:
   #       ipv4_address: 172.16.238.30
 
-
+############# UNCOMMMENT FROM HERE
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
